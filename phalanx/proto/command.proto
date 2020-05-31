@@ -1,0 +1,10 @@
+syntax = "proto3";
+package doctrine.phalanx;
+
+option go_package = "github.com/getumen/doctrine/phalanx/phalanxpb";
+
+message Command {
+    string command = 1;
+    bytes key = 2;
+    bytes value = 3;
+}
