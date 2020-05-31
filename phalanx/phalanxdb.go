@@ -15,8 +15,13 @@ type phananxDB struct {
 	snapshotter   *snap.Snapshotter
 }
 
-func (db *phananxDB) Get(key []byte, options ...ReadOptions) ([]byte, error) {
-	return db.Get(key, options...)
+func (db *phananxDB) Get(key []byte, ro *ReadOptions) ([]byte, error) {
+	snapshot, err := db.stableStore.GetSnapshot()
+	if err != nil {
+		return nil, err
+	}
+	defer snapshot.Release()
+	return snapshot.Get(key, ro)
 }
 
 func (db *phananxDB) Propose(command *phalanxpb.Command) error {
@@ -63,9 +68,9 @@ func (db *phananxDB) readCommits(commitC chan []byte, errorC chan error) error {
 }
 
 func (db *phananxDB) getSnapshot() ([]byte, error) {
-	return db.stableStore.CreateSnapshot()
+	return db.stableStore.CreateCheckpoint()
 }
 
 func (db *phananxDB) recoverFromSnapshot(snapshot []byte) error {
-	return db.stableStore.RestoreToSnapshot(snapshot)
+	return db.stableStore.RestoreToCheckpoint(snapshot)
 }

@@ -142,7 +142,7 @@ func (rc *phalanxNode) publishEntries(ents []raftpb.Entry) bool {
 func (rc *phalanxNode) loadSnapshot() *raftpb.Snapshot {
 	snapshot, err := rc.snapshotter.Load()
 	if err != nil && err != snap.ErrNoSnapshot {
-		log.Fatalf("raftexample: error loading snapshot (%v)", err)
+		log.Fatalf("phalanxNode: error loading snapshot (%v)", err)
 	}
 	return snapshot
 }
@@ -151,12 +151,12 @@ func (rc *phalanxNode) loadSnapshot() *raftpb.Snapshot {
 func (rc *phalanxNode) openWAL(snapshot *raftpb.Snapshot) *wal.WAL {
 	if !wal.Exist(rc.waldir) {
 		if err := os.Mkdir(rc.waldir, 0750); err != nil {
-			log.Fatalf("raftexample: cannot create dir for wal (%v)", err)
+			log.Fatalf("phalanxNode: cannot create dir for wal (%v)", err)
 		}
 
 		w, err := wal.Create(rc.waldir, nil)
 		if err != nil {
-			log.Fatalf("raftexample: create wal error (%v)", err)
+			log.Fatalf("phalanxNode: create wal error (%v)", err)
 		}
 		w.Close()
 	}
@@ -168,7 +168,7 @@ func (rc *phalanxNode) openWAL(snapshot *raftpb.Snapshot) *wal.WAL {
 	log.Printf("loading WAL at term %d and index %d", walsnap.Term, walsnap.Index)
 	w, err := wal.Open(rc.waldir, walsnap)
 	if err != nil {
-		log.Fatalf("raftexample: error loading wal (%v)", err)
+		log.Fatalf("phalanxNode: error loading wal (%v)", err)
 	}
 
 	return w
@@ -181,7 +181,7 @@ func (rc *phalanxNode) replayWAL() *wal.WAL {
 	w := rc.openWAL(snapshot)
 	_, st, ents, err := w.ReadAll()
 	if err != nil {
-		log.Fatalf("raftexample: failed to read WAL (%v)", err)
+		log.Fatalf("phalanxNode: failed to read WAL (%v)", err)
 	}
 	rc.raftStorage = raft.NewMemoryStorage()
 	if snapshot != nil {
@@ -211,7 +211,7 @@ func (rc *phalanxNode) writeError(err error) {
 func (rc *phalanxNode) startRaft() {
 	if !fileutil.Exist(rc.snapdir) {
 		if err := os.Mkdir(rc.snapdir, 0750); err != nil {
-			log.Fatalf("raftexample: cannot create dir for snapshot (%v)", err)
+			log.Fatalf("phalanxNode: cannot create dir for snapshot (%v)", err)
 		}
 	}
 	rc.snapshotter = snap.New(rc.snapdir)
@@ -412,19 +412,19 @@ func (rc *phalanxNode) serveChannels() {
 func (rc *phalanxNode) serveRaft() {
 	url, err := url.Parse(rc.peers[rc.id-1])
 	if err != nil {
-		log.Fatalf("raftexample: Failed parsing URL (%v)", err)
+		log.Fatalf("phalanxNode: Failed parsing URL (%v)", err)
 	}
 
 	ln, err := newStoppableListener(url.Host, rc.httpstopc)
 	if err != nil {
-		log.Fatalf("raftexample: Failed to listen rafthttp (%v)", err)
+		log.Fatalf("phalanxNode: Failed to listen rafthttp (%v)", err)
 	}
 
 	err = (&http.Server{Handler: rc.transport.Handler()}).Serve(ln)
 	select {
 	case <-rc.httpstopc:
 	default:
-		log.Fatalf("raftexample: Failed to serve rafthttp (%v)", err)
+		log.Fatalf("phalanxNode: Failed to serve rafthttp (%v)", err)
 	}
 	close(rc.httpdonec)
 }
