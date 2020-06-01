@@ -10,12 +10,16 @@ require (
 	github.com/dustin/go-humanize v1.0.0 // indirect
 	github.com/gogo/protobuf v1.3.1 // indirect
 	github.com/golang/protobuf v1.4.2
-	github.com/pkg/errors v0.9.1 // indirect
+	github.com/hashicorp/go-multierror v1.1.0
+	github.com/linkedin/goavro v2.1.0+incompatible
+	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.6.0 // indirect
+	github.com/syndtr/goleveldb v1.0.0
 	github.com/xiang90/probing v0.0.0-20190116061207-43a291ad63a2 // indirect
 	go.uber.org/zap v1.15.0 // indirect
 	golang.org/x/time v0.0.0-20200416051211-89c76fbcd5d1 // indirect
 	google.golang.org/protobuf v1.24.0
+	gopkg.in/linkedin/goavro.v1 v1.0.5 // indirect
 )
 
 replace github.com/coreos/bbolt => go.etcd.io/bbolt v1.3.3

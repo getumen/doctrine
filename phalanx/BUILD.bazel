@@ -1,0 +1,29 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "command_handler.go",
+        "errors.go",
+        "listener.go",
+        "logstore.go",
+        "phalanx_node.go",
+        "phalanxdb.go",
+        "stablestore.go",
+    ],
+    importpath = "github.com/getumen/doctrine/phalanx",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//phalanx/phalanxpb:go_default_library",
+        "@com_github_coreos_etcd//etcdserver/stats:go_default_library",
+        "@com_github_coreos_etcd//pkg/fileutil:go_default_library",
+        "@com_github_coreos_etcd//pkg/types:go_default_library",
+        "@com_github_coreos_etcd//raft:go_default_library",
+        "@com_github_coreos_etcd//raft/raftpb:go_default_library",
+        "@com_github_coreos_etcd//rafthttp:go_default_library",
+        "@com_github_coreos_etcd//snap:go_default_library",
+        "@com_github_coreos_etcd//wal:go_default_library",
+        "@com_github_coreos_etcd//wal/walpb:go_default_library",
+        "@org_golang_google_protobuf//proto:go_default_library",
+    ],
+)

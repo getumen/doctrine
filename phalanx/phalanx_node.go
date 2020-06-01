@@ -41,7 +41,7 @@ type phalanxNode struct {
 
 	// raft backing for the commit/error channel
 	node        raft.Node
-	raftStorage LogStorage
+	raftStorage LogStore
 	wal         *wal.WAL
 
 	snapshotter      *snap.Snapshotter

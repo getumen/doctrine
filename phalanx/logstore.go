@@ -5,8 +5,8 @@ import (
 	"github.com/coreos/etcd/raft/raftpb"
 )
 
-// LogStorage is a raft log storage that supports creating snapshot
-type LogStorage interface {
+// LogStore is a raft log storage that supports creating snapshot
+type LogStore interface {
 	raft.Storage
 	ApplySnapshot(snap raftpb.Snapshot) error
 	SetHardState(st raftpb.HardState) error
