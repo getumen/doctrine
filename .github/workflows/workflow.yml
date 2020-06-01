@@ -1,0 +1,21 @@
+on: push
+name: Doctrine CI
+jobs:
+  checks:
+    name: run
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@master
+
+    - name: update-repos
+      run: ./bin/update_repos
+
+    - name: test
+      uses: ngalaiko/bazel-action@master
+      with:
+        args: test //... --test_output=errors
+
+    - name: build
+      uses: ngalaiko/bazel-action@master
+      with:
+        args: build //...
