@@ -86,3 +86,23 @@ type Range struct {
 	Start []byte
 	End   []byte
 }
+
+// BytesPrefixRange returns Range of the givein prefix
+func BytesPrefixRange(prefix []byte) *Range {
+	var end []byte
+	for i := len(prefix) - 1; i >= 0; i-- {
+		c := prefix[i]
+		if c < 0xff {
+			end = make([]byte, i+1)
+			copy(end, prefix)
+			end[i] = c + 1
+			break
+		}
+	}
+	return &Range{Start: prefix, End: end}
+}
+
+// FullScanRange returns full scan range
+func FullScanRange() *Range {
+	return &Range{nil, nil}
+}

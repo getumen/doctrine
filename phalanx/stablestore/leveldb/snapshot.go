@@ -12,12 +12,18 @@ type snapshot struct {
 }
 
 func (snap *snapshot) Get(key []byte, ro *phalanx.ReadOptions) (value []byte, err error) {
+	if ro == nil {
+		ro = phalanx.DefaultReadOptions()
+	}
 	return snap.internal.Get(key, &opt.ReadOptions{
 		DontFillCache: !ro.FillCache,
 	})
 }
 
 func (snap *snapshot) Has(key []byte, ro *phalanx.ReadOptions) (ret bool, err error) {
+	if ro == nil {
+		ro = phalanx.DefaultReadOptions()
+	}
 	return snap.internal.Has(key, &opt.ReadOptions{
 		DontFillCache: !ro.FillCache,
 	})
@@ -26,6 +32,12 @@ func (snap *snapshot) Has(key []byte, ro *phalanx.ReadOptions) (ret bool, err er
 func (snap *snapshot) NewIterator(
 	slice *phalanx.Range,
 	ro *phalanx.ReadOptions) phalanx.Iterator {
+	if slice == nil {
+		slice = phalanx.FullScanRange()
+	}
+	if ro == nil {
+		ro = phalanx.DefaultReadOptions()
+	}
 	return &iterator{
 		internal: snap.internal.NewIterator(
 			&util.Range{

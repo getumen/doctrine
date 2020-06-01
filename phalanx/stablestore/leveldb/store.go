@@ -18,7 +18,7 @@ const schema = `
  	"name": "Checkpoint",
  	"fields": [
     	{"name": "key", "type": "bytes"},
-    	{"name": "value",  "type": ["bytes", "null"]},
+    	{"name": "value",  "type": ["bytes", "null"]}
 	]
 }
 `
@@ -39,11 +39,14 @@ func (s *store) CreateBatch() phalanx.Batch {
 // Write apply the given batch to the StableStorage
 func (s *store) Write(b phalanx.Batch, wo *phalanx.WriteOptions) error {
 	if bi, ok := b.(*batch); ok {
+		if wo == nil {
+			wo = phalanx.DefaultWriteOptions()
+		}
 		return s.internal.Write(bi.internal, &opt.WriteOptions{
 			Sync: wo.Sync,
 		})
 	}
-	return errors.Errorf("cast fail")
+	return errors.New("cast fail")
 }
 
 // CreateCheckpoint creates a checkpoint of this StableStore
@@ -69,19 +72,36 @@ func (s *store) CreateCheckpoint() ([]byte, error) {
 		return nil, err
 	}
 	defer cp.Release()
-	it := cp.NewIterator(
-		&phalanx.Range{Start: nil, End: nil},
+	iter := cp.NewIterator(
+		phalanx.FullScanRange(),
 		&phalanx.ReadOptions{FillCache: false},
 	)
 
 	var resultError *multierror.Error
 
-	for it.Next() {
+	for iter.Next() {
+		keyRef := iter.Key()
+		valueRef := iter.Value()
 
-		record := map[string][]byte{
-			"key":   it.Key(),
-			"value": it.Value(),
+		key := make([]byte, len(keyRef))
+		copy(key, keyRef)
+
+		var record map[string]interface{}
+
+		if valueRef == nil {
+			record = map[string]interface{}{
+				"key":   key,
+				"value": goavro.Union("null", nil),
+			}
+		} else {
+			value := make([]byte, len(valueRef))
+			copy(value, valueRef)
+			record = map[string]interface{}{
+				"key":   key,
+				"value": goavro.Union("bytes", value),
+			}
 		}
+
 		block = append(block, record)
 
 		if len(block) >= maxBatchSize {
@@ -92,11 +112,13 @@ func (s *store) CreateCheckpoint() ([]byte, error) {
 			block = []interface{}{}
 		}
 	}
-	if err = writer.Append(block); err != nil {
-		resultError = multierror.Append(resultError, err)
+	if len(block) > 0 {
+		if err = writer.Append(block); err != nil {
+			resultError = multierror.Append(resultError, err)
+		}
 	}
-	it.Release()
-	resultError = multierror.Append(resultError, it.Error())
+	iter.Release()
+	resultError = multierror.Append(resultError, iter.Error())
 
 	return buffer.Bytes(), resultError.ErrorOrNil()
 }
@@ -109,15 +131,16 @@ func (s *store) RestoreToCheckpoint(checkpoint []byte) error {
 		return err
 	}
 	defer snap.Release()
-	it := snap.NewIterator(
-		&phalanx.Range{Start: nil, End: nil},
+	iter := snap.NewIterator(
+		phalanx.FullScanRange(),
 		&phalanx.ReadOptions{FillCache: false},
 	)
 	var resultError *multierror.Error
 
 	batch := s.CreateBatch()
-	for it.Next() {
-		batch.Delete(it.Key())
+	for iter.Next() {
+		key := iter.Key()
+		batch.Delete(key)
 
 		if batch.Len() >= maxBatchSize {
 			err = s.Write(batch, nil)
@@ -127,8 +150,8 @@ func (s *store) RestoreToCheckpoint(checkpoint []byte) error {
 	}
 	err = s.Write(batch, nil)
 	resultError = multierror.Append(resultError, err)
-	it.Release()
-	resultError = multierror.Append(resultError, it.Error())
+	iter.Release()
+	resultError = multierror.Append(resultError, iter.Error())
 
 	if resultError.ErrorOrNil() != nil {
 		return resultError.ErrorOrNil()
@@ -142,8 +165,13 @@ func (s *store) RestoreToCheckpoint(checkpoint []byte) error {
 	}
 	for reader.Scan() {
 		if record, err := reader.Read(); err == nil {
-			m := record.(map[string][]byte)
-			batch.Put(m["key"], m["value"])
+			m := record.(map[string]interface{})
+			value := m["value"].(map[string]interface{})
+			if el, ok := value["bytes"]; ok {
+				batch.Put(m["key"].([]byte), el.([]byte))
+			} else {
+				batch.Put(m["key"].([]byte), nil)
+			}
 		} else {
 			resultError = multierror.Append(resultError, err)
 		}
@@ -154,8 +182,10 @@ func (s *store) RestoreToCheckpoint(checkpoint []byte) error {
 			batch = s.CreateBatch()
 		}
 	}
-	err = s.Write(batch, nil)
-	resultError = multierror.Append(resultError, err)
+	if batch.Len() > 0 {
+		err = s.Write(batch, nil)
+		resultError = multierror.Append(resultError, err)
+	}
 
 	return resultError.ErrorOrNil()
 }
