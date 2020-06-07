@@ -16,7 +16,10 @@ go_library(
 
 go_test(
     name = "go_default_test",
-    srcs = ["impl_test.go"],
+    srcs = [
+        "impl_test.go",
+        "stote_test.go",
+    ],
     embed = [":go_default_library"],
     deps = ["//phalanx:go_default_library"],
 )
