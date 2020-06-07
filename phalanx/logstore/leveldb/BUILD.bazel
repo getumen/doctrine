@@ -1,0 +1,22 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["store.go"],
+    importpath = "github.com/getumen/doctrine/phalanx/logstore/leveldb",
+    visibility = ["//visibility:public"],
+    deps = [
+        "@com_github_coreos_etcd//raft:go_default_library",
+        "@com_github_coreos_etcd//raft/raftpb:go_default_library",
+        "@com_github_hashicorp_go_multierror//:go_default_library",
+        "@com_github_syndtr_goleveldb//leveldb:go_default_library",
+        "@com_github_syndtr_goleveldb//leveldb/util:go_default_library",
+    ],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = ["impl_test.go"],
+    embed = [":go_default_library"],
+    deps = ["//phalanx:go_default_library"],
+)

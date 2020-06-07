@@ -1,4 +1,4 @@
-package leveldb
+package leveldbstablestore
 
 import (
 	"testing"
