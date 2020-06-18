@@ -22,9 +22,9 @@ import (
 
 // A key-value stream backed by raft
 type phalanxNode struct {
-	proposeC    <-chan string            // proposed messages (k,v)
+	proposeC    <-chan []byte            // proposed messages (k,v)
 	confChangeC <-chan raftpb.ConfChange // proposed cluster config changes
-	commitC     chan<- *string           // entries committed to log (k,v)
+	commitC     chan<- []byte            // entries committed to log (k,v)
 	errorC      chan<- error             // errors from raft session
 
 	id          int      // client ID for raft session
@@ -41,7 +41,7 @@ type phalanxNode struct {
 
 	// raft backing for the commit/error channel
 	node        raft.Node
-	raftStorage LogStore
+	raftStorage *raft.MemoryStorage
 	wal         *wal.WAL
 
 	snapshotter      *snap.Snapshotter
@@ -52,6 +52,48 @@ type phalanxNode struct {
 	stopc     chan struct{} // signals proposal channel closed
 	httpstopc chan struct{} // signals http server to shutdown
 	httpdonec chan struct{} // signals http server shutdown complete
+}
+
+// NewNode creates new phalanx node
+func NewNode(
+	id int,
+	peers []string,
+	join bool,
+	getSnapshot func() ([]byte, error),
+	proposeC <-chan []byte,
+	confChangeC <-chan raftpb.ConfChange,
+	walDir string,
+	snapDir string,
+) (
+	chan []byte,
+	chan error,
+	chan *snap.Snapshotter,
+) {
+	commitC := make(chan []byte)
+	errorC := make(chan error)
+
+	rc := &phalanxNode{
+		proposeC:    proposeC,
+		confChangeC: confChangeC,
+		commitC:     commitC,
+		errorC:      errorC,
+		id:          id,
+		peers:       peers,
+		join:        join,
+		waldir:      walDir,
+		snapdir:     snapDir,
+		getSnapshot: getSnapshot,
+		snapCount:   defaultSnapshotCount,
+		stopc:       make(chan struct{}),
+		httpstopc:   make(chan struct{}),
+		httpdonec:   make(chan struct{}),
+
+		snapshotterReady: make(chan *snap.Snapshotter, 1),
+		// rest of structure populated after WAL replay
+
+	}
+	go rc.startRaft()
+	return commitC, errorC, rc.snapshotterReady
 }
 
 var defaultSnapshotCount uint64 = 10000
@@ -99,9 +141,9 @@ func (rc *phalanxNode) publishEntries(ents []raftpb.Entry) bool {
 				// ignore empty messages
 				break
 			}
-			s := string(ents[i].Data)
+			s := ents[i].Data
 			select {
-			case rc.commitC <- &s:
+			case rc.commitC <- s:
 			case <-rc.stopc:
 				return false
 			}
@@ -282,17 +324,11 @@ func (rc *phalanxNode) publishSnapshot(snapshotToSave raftpb.Snapshot) {
 		return
 	}
 
-	log.Printf("publishing snapshot at index %d",
-		rc.snapshotIndex)
-	defer log.Printf(
-		"finished publishing snapshot at index %d",
-		rc.snapshotIndex)
+	log.Printf("publishing snapshot at index %d", rc.snapshotIndex)
+	defer log.Printf("finished publishing snapshot at index %d", rc.snapshotIndex)
 
 	if snapshotToSave.Metadata.Index <= rc.appliedIndex {
-		log.Fatalf(
-			"snapshot index [%d] should > progress.appliedIndex [%d]",
-			snapshotToSave.Metadata.Index,
-			rc.appliedIndex)
+		log.Fatalf("snapshot index [%d] should > progress.appliedIndex [%d]", snapshotToSave.Metadata.Index, rc.appliedIndex)
 	}
 	rc.commitC <- nil // trigger kvstore to load snapshot
 
@@ -432,6 +468,12 @@ func (rc *phalanxNode) serveRaft() {
 func (rc *phalanxNode) Process(ctx context.Context, m raftpb.Message) error {
 	return rc.node.Step(ctx, m)
 }
-func (rc *phalanxNode) IsIDRemoved(id uint64) bool                           { return false }
-func (rc *phalanxNode) ReportUnreachable(id uint64)                          {}
-func (rc *phalanxNode) ReportSnapshot(id uint64, status raft.SnapshotStatus) {}
+func (rc *phalanxNode) IsIDRemoved(id uint64) bool {
+	return false
+}
+
+func (rc *phalanxNode) ReportUnreachable(id uint64) {
+}
+
+func (rc *phalanxNode) ReportSnapshot(id uint64, status raft.SnapshotStatus) {
+}

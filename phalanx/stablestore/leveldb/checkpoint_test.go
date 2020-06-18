@@ -33,7 +33,7 @@ func TestPhalanxDB_Checkpoint(t *testing.T) {
 	}
 	defer snap.Release()
 
-	v, err := snap.Get([]byte("foo"), nil)
+	v, err := snap.Get([]byte("foo"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -53,7 +53,7 @@ func TestPhalanxDB_Checkpoint(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	v, err = snap.Get([]byte("foo"), nil)
+	v, err = snap.Get([]byte("foo"))
 	if err != leveldb.ErrNotFound {
 		t.Fatal(err)
 	}
@@ -65,7 +65,7 @@ func TestPhalanxDB_Checkpoint(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	v, err = snap.Get([]byte("foo"), nil)
+	v, err = snap.Get([]byte("foo"))
 	if err != nil {
 		t.Fatal(err)
 	}

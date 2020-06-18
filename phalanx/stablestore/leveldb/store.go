@@ -8,7 +8,6 @@ import (
 	"github.com/linkedin/goavro"
 	"github.com/pkg/errors"
 	"github.com/syndtr/goleveldb/leveldb"
-	"github.com/syndtr/goleveldb/leveldb/opt"
 )
 
 const schema = `
@@ -29,6 +28,24 @@ type store struct {
 	internal *leveldb.DB
 }
 
+type storeDriver struct {
+}
+
+// New creates stable store implemented by LevelDB
+func (d *storeDriver) New(dataPath string) (phalanx.StableStore, error) {
+	db, err := leveldb.OpenFile(dataPath, nil)
+	if err != nil {
+		return nil, err
+	}
+	return &store{
+		internal: db,
+	}, nil
+}
+
+func init() {
+	phalanx.RegisterStableStore("leveldb", &storeDriver{})
+}
+
 // CreateBatch creates batch
 func (s *store) CreateBatch() phalanx.Batch {
 	return &batch{
@@ -37,14 +54,9 @@ func (s *store) CreateBatch() phalanx.Batch {
 }
 
 // Write apply the given batch to the StableStorage
-func (s *store) Write(b phalanx.Batch, wo *phalanx.WriteOptions) error {
+func (s *store) Write(b phalanx.Batch) error {
 	if bi, ok := b.(*batch); ok {
-		if wo == nil {
-			wo = phalanx.DefaultWriteOptions()
-		}
-		return s.internal.Write(bi.internal, &opt.WriteOptions{
-			Sync: wo.Sync,
-		})
+		return s.internal.Write(bi.internal, nil)
 	}
 	return errors.New("cast fail")
 }
@@ -74,7 +86,6 @@ func (s *store) CreateCheckpoint() ([]byte, error) {
 	defer cp.Release()
 	iter := cp.NewIterator(
 		phalanx.FullScanRange(),
-		&phalanx.ReadOptions{FillCache: false},
 	)
 
 	var resultError *multierror.Error
@@ -133,7 +144,6 @@ func (s *store) RestoreToCheckpoint(checkpoint []byte) error {
 	defer snap.Release()
 	iter := snap.NewIterator(
 		phalanx.FullScanRange(),
-		&phalanx.ReadOptions{FillCache: false},
 	)
 	var resultError *multierror.Error
 
@@ -143,12 +153,12 @@ func (s *store) RestoreToCheckpoint(checkpoint []byte) error {
 		batch.Delete(key)
 
 		if batch.Len() >= maxBatchSize {
-			err = s.Write(batch, nil)
+			err = s.Write(batch)
 			resultError = multierror.Append(resultError, err)
 			batch = s.CreateBatch()
 		}
 	}
-	err = s.Write(batch, nil)
+	err = s.Write(batch)
 	resultError = multierror.Append(resultError, err)
 	iter.Release()
 	resultError = multierror.Append(resultError, iter.Error())
@@ -177,13 +187,13 @@ func (s *store) RestoreToCheckpoint(checkpoint []byte) error {
 		}
 
 		if batch.Len() >= maxBatchSize {
-			err = s.Write(batch, nil)
+			err = s.Write(batch)
 			resultError = multierror.Append(resultError, err)
 			batch = s.CreateBatch()
 		}
 	}
 	if batch.Len() > 0 {
-		err = s.Write(batch, nil)
+		err = s.Write(batch)
 		resultError = multierror.Append(resultError, err)
 	}
 
