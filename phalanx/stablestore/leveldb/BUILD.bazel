@@ -9,7 +9,7 @@ go_library(
         "store.go",
         "transaction.go",
     ],
-    importpath = "github.com/getumen/doctrine/phalanx/stablestorage/leveldb",
+    importpath = "github.com/getumen/doctrine/phalanx/stablestore/leveldb",
     visibility = ["//visibility:public"],
     deps = [
         "//phalanx:go_default_library",
@@ -25,7 +25,14 @@ go_library(
 
 go_test(
     name = "go_default_test",
-    srcs = ["impl_test.go"],
+    srcs = [
+        "checkpoint_test.go",
+        "impl_test.go",
+        "store_test.go",
+    ],
     embed = [":go_default_library"],
-    deps = ["//phalanx:go_default_library"],
+    deps = [
+        "//phalanx:go_default_library",
+        "@com_github_syndtr_goleveldb//leveldb:go_default_library",
+    ],
 )

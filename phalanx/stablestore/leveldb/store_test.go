@@ -1,4 +1,4 @@
-package leveldb
+package leveldbstablestore
 
 import (
 	"bytes"
@@ -53,12 +53,13 @@ func TestStore_Checkpoint(t *testing.T) {
 	target := &store{
 		internal: internal,
 	}
+	t.Cleanup(func() { target.Close() })
 
 	batch := target.CreateBatch()
 	for i := range inputs {
 		batch.Put(inputs[i].key, inputs[i].value)
 	}
-	err = target.Write(batch, nil)
+	err = target.Write(batch)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -80,6 +81,7 @@ func TestStore_Checkpoint(t *testing.T) {
 	actual := &store{
 		internal: actualInternal,
 	}
+	t.Cleanup(func() { actual.Close() })
 
 	err = actual.RestoreToCheckpoint(checkpoint)
 	if err != nil {
@@ -92,7 +94,7 @@ func TestStore_Checkpoint(t *testing.T) {
 	}
 	defer snap.Release()
 
-	iter := snap.NewIterator(nil, nil)
+	iter := snap.NewIterator(nil)
 	defer iter.Release()
 
 	counter := 0

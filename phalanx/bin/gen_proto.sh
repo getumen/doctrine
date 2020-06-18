@@ -2,4 +2,4 @@
 
 set -eu
 
-protoc -I=proto --go_out=phalanxpb --go_opt=paths=source_relative proto/command.proto
+protoc -I=phalanxpb --go_out=phalanxpb --go_opt=paths=source_relative phalanxpb/command.proto

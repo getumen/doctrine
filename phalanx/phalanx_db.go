@@ -8,6 +8,12 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+// DB is distributed embeddable db
+type DB interface {
+	Get(key []byte) ([]byte, error)
+	Propose(command *phalanxpb.Command) error
+}
+
 type phananxDB struct {
 	proposeC      chan<- []byte // channel for proposing updates
 	stableStore   StableStore
@@ -15,13 +21,36 @@ type phananxDB struct {
 	snapshotter   *snap.Snapshotter
 }
 
-func (db *phananxDB) Get(key []byte, ro *ReadOptions) ([]byte, error) {
+// NewDB creates new db
+func NewDB(
+	snapshotter *snap.Snapshotter,
+	proposeC chan []byte,
+	commitC chan []byte,
+	errorC chan error,
+	stableStore StableStore,
+	commandHander CommandHandler,
+) DB {
+	db := &phananxDB{
+		proposeC:      proposeC,
+		stableStore:   stableStore,
+		commandHander: commandHander,
+		snapshotter:   snapshotter,
+	}
+	// replay log into key-value map
+	db.readCommits(commitC, errorC)
+	// read commits from raft into kvStore map until error
+	go db.readCommits(commitC, errorC)
+
+	return db
+}
+
+func (db *phananxDB) Get(key []byte) ([]byte, error) {
 	snapshot, err := db.stableStore.GetSnapshot()
 	if err != nil {
 		return nil, err
 	}
 	defer snapshot.Release()
-	return snapshot.Get(key, ro)
+	return snapshot.Get(key)
 }
 
 func (db *phananxDB) Propose(command *phalanxpb.Command) error {

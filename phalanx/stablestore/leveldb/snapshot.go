@@ -1,4 +1,4 @@
-package leveldb
+package leveldbstablestore
 
 import (
 	"github.com/getumen/doctrine/phalanx"
@@ -11,32 +11,18 @@ type snapshot struct {
 	internal *leveldb.Snapshot
 }
 
-func (snap *snapshot) Get(key []byte, ro *phalanx.ReadOptions) (value []byte, err error) {
-	if ro == nil {
-		ro = phalanx.DefaultReadOptions()
-	}
-	return snap.internal.Get(key, &opt.ReadOptions{
-		DontFillCache: !ro.FillCache,
-	})
+func (snap *snapshot) Get(key []byte) (value []byte, err error) {
+	return snap.internal.Get(key, nil)
 }
 
-func (snap *snapshot) Has(key []byte, ro *phalanx.ReadOptions) (ret bool, err error) {
-	if ro == nil {
-		ro = phalanx.DefaultReadOptions()
-	}
-	return snap.internal.Has(key, &opt.ReadOptions{
-		DontFillCache: !ro.FillCache,
-	})
+func (snap *snapshot) Has(key []byte) (ret bool, err error) {
+	return snap.internal.Has(key, nil)
 }
 
 func (snap *snapshot) NewIterator(
-	slice *phalanx.Range,
-	ro *phalanx.ReadOptions) phalanx.Iterator {
+	slice *phalanx.Range) phalanx.Iterator {
 	if slice == nil {
 		slice = phalanx.FullScanRange()
-	}
-	if ro == nil {
-		ro = phalanx.DefaultReadOptions()
 	}
 	return &iterator{
 		internal: snap.internal.NewIterator(
@@ -44,9 +30,7 @@ func (snap *snapshot) NewIterator(
 				Start: slice.Start,
 				Limit: slice.End,
 			},
-			&opt.ReadOptions{
-				DontFillCache: !ro.FillCache,
-			},
+			&opt.ReadOptions{DontFillCache: true},
 		),
 	}
 }

@@ -1,4 +1,4 @@
-package leveldb
+package leveldbstablestore
 
 import (
 	"github.com/getumen/doctrine/phalanx"
@@ -16,47 +16,25 @@ func (tx *transaction) Commit() error {
 	return tx.internal.Commit()
 }
 
-func (tx *transaction) Delete(key []byte, wo *phalanx.WriteOptions) error {
-	if wo == nil {
-		wo = phalanx.DefaultWriteOptions()
-	}
+func (tx *transaction) Delete(key []byte) error {
 
-	return tx.internal.Delete(
-		key,
-		&opt.WriteOptions{
-			Sync: wo.Sync,
-		},
-	)
+	return tx.internal.Delete(key, nil)
 }
 
 func (tx *transaction) Discard() {
 	tx.internal.Discard()
 }
 
-func (tx *transaction) Get(key []byte, ro *phalanx.ReadOptions) ([]byte, error) {
-	if ro == nil {
-		ro = phalanx.DefaultReadOptions()
-	}
+func (tx *transaction) Get(key []byte) ([]byte, error) {
 
-	return tx.internal.Get(key, &opt.ReadOptions{
-		DontFillCache: !ro.FillCache,
-	})
+	return tx.internal.Get(key, nil)
 }
 
-func (tx *transaction) Has(key []byte, ro *phalanx.ReadOptions) (bool, error) {
-	if ro == nil {
-		ro = phalanx.DefaultReadOptions()
-	}
-
-	return tx.internal.Has(key, &opt.ReadOptions{
-		DontFillCache: !ro.FillCache,
-	})
+func (tx *transaction) Has(key []byte) (bool, error) {
+	return tx.internal.Has(key, nil)
 }
 
-func (tx *transaction) NewIterator(slice *phalanx.Range, ro *phalanx.ReadOptions) phalanx.Iterator {
-	if ro == nil {
-		ro = phalanx.DefaultReadOptions()
-	}
+func (tx *transaction) NewIterator(slice *phalanx.Range) phalanx.Iterator {
 
 	return &iterator{
 		internal: tx.internal.NewIterator(
@@ -65,31 +43,21 @@ func (tx *transaction) NewIterator(slice *phalanx.Range, ro *phalanx.ReadOptions
 				Limit: slice.End,
 			},
 			&opt.ReadOptions{
-				DontFillCache: !ro.FillCache,
+				DontFillCache: true,
 			},
 		),
 	}
 }
 
-func (tx *transaction) Put(key, value []byte, wo *phalanx.WriteOptions) error {
-	if wo == nil {
-		wo = phalanx.DefaultWriteOptions()
-	}
+func (tx *transaction) Put(key, value []byte) error {
 
-	return tx.internal.Put(key, value, &opt.WriteOptions{
-		Sync: wo.Sync,
-	})
+	return tx.internal.Put(key, value, nil)
 }
 
-func (tx *transaction) Write(b phalanx.Batch, wo *phalanx.WriteOptions) error {
-	if wo == nil {
-		wo = phalanx.DefaultWriteOptions()
-	}
+func (tx *transaction) Write(b phalanx.Batch) error {
 
 	if ba, ok := b.(*batch); ok {
-		return tx.internal.Write(ba.internal, &opt.WriteOptions{
-			Sync: wo.Sync,
-		})
+		return tx.internal.Write(ba.internal, nil)
 	}
 	return errors.Errorf("cast error: %v", b)
 }
