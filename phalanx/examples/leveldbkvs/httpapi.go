@@ -13,6 +13,7 @@ import (
 
 // Handler for a http based key-value store backed by raft
 type httpKVAPI struct {
+	regionName  string
 	store       phalanx.DB
 	confChangeC chan<- raftpb.ConfChange
 }

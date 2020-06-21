@@ -9,12 +9,17 @@ import (
 
 type commandHandler struct{}
 
-func (c *commandHandler) Apply(command *phalanxpb.Command, stableStorage phalanx.StableStore) {
+func (c *commandHandler) Apply(
+	regionName string,
+	command *phalanxpb.Command,
+	stableStorage phalanx.StableStore,
+) {
 	switch command.Command {
 	case "PUT":
 		batch := stableStorage.CreateBatch()
 		for i := range command.KeyValues {
 			batch.Put(
+				regionName,
 				command.KeyValues[i].Key,
 				command.KeyValues[i].Value,
 			)

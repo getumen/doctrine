@@ -33,10 +33,3 @@ func TestIteratorImplementation(t *testing.T) {
 		t.Fatalf("iterator implementation is incomplele")
 	}
 }
-
-func TestTransactionImplementation(t *testing.T) {
-	var target interface{} = new(transaction)
-	if _, ok := target.(phalanx.Transaction); !ok {
-		t.Fatalf("transaction implementation is incomplele")
-	}
-}

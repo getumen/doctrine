@@ -6,32 +6,38 @@ type StableStore interface {
 	CreateBatch() Batch
 	// Write apply the given batch to the StableStorage
 	Write(batch Batch) error
-	// CreateCheckpoint creates a checkpoint of this StableStore
-	// In creating checkpoint, StableStore must be able to get keys
-	CreateCheckpoint() ([]byte, error)
-	// RestoreToCheckpoint restores internal storage to checkpoint
-	RestoreToCheckpoint(checkpoint []byte) error
 	// Close Close closes the StableStorage
 	Close() error
-	// GetSnapshot
+	// GetSnapshot returns snapshot
 	GetSnapshot() (Snapshot, error)
-	// OpenTransaction returns Transaction
-	OpenTransaction() (Transaction, error)
+	// CreateCheckpoint creates a checkpoint of the given region
+	// In creating checkpoint, StableStore must be able to get keys
+	// CreateCheckpoint returns checkpointInfo which enable stable store to restore to the checkpoint
+	// For example, marshaled Amazon S3 bucket and object name.
+	CreateCheckpoint(region string) ([]byte, error)
+	// RestoreToCheckpoint restores the given region to checkpoint
+	RestoreToCheckpoint(region string, checkpointInfo []byte) error
+	// CreateRegion creates a region
+	CreateRegion(name string) error
+	// DropRegion drop a region
+	DropRegion(name string) error
+	// HasRegion returns if a region exists
+	HasRegion(name string) bool
 }
 
 // Batch is a write batch
 type Batch interface {
-	Put(key, value []byte)
-	Delete(key []byte)
-	Len() int
-	Reset()
+	Put(region string, key, value []byte)
+	Delete(region string, key []byte)
+	Len(region string) int
+	Reset(region string)
 }
 
 // Snapshot is a snapshot of StableStorage
 type Snapshot interface {
-	Get(key []byte) (value []byte, err error)
-	Has(key []byte) (ret bool, err error)
-	NewIterator(slice *Range) Iterator
+	Get(region string, key []byte) (value []byte, err error)
+	Has(region string, key []byte) (ret bool, err error)
+	NewIterator(region string, slice *Range) (Iterator, error)
 	Release()
 }
 
@@ -67,19 +73,6 @@ type Iterator interface {
 	// Prev moves the iterator to the previous key/value pair.
 	// It returns false if the iterator is exhausted.
 	Prev() bool
-}
-
-// Transaction is an transaction
-type Transaction interface {
-	Commit() error
-	Delete(key []byte) error
-	Discard()
-	Get(key []byte) ([]byte, error)
-	Has(key []byte) (bool, error)
-	NewIterator(slice *Range) Iterator
-	Put(key, value []byte) error
-	Write(b Batch) error
-	CreateBatch() Batch
 }
 
 // Range is a key range
