@@ -19,7 +19,7 @@ func RegisterStableStore(
 	stableStoreDroverLock.Lock()
 	defer stableStoreDroverLock.Unlock()
 	if _, dup := stableStoreDrivers[driverName]; dup {
-		panic("sql: Register called twice for driver " + driverName)
+		panic("stable store: Register called twice for driver " + driverName)
 	}
 	stableStoreDrivers[driverName] = driver
 }
@@ -31,5 +31,5 @@ func NewStableStore(name string, path string) (StableStore, error) {
 	if driver, ok := stableStoreDrivers[name]; ok {
 		return driver.New(path)
 	}
-	return nil, &ErrStableStoreDriverNotFound{driverName: name}
+	return nil, &ErrStableStoreDriverNotFound{DriverName: name}
 }

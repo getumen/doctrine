@@ -15,6 +15,7 @@ type DB interface {
 }
 
 type phananxDB struct {
+	regionName    string
 	proposeC      chan<- []byte // channel for proposing updates
 	stableStore   StableStore
 	commandHander CommandHandler
@@ -23,6 +24,7 @@ type phananxDB struct {
 
 // NewDB creates new db
 func NewDB(
+	regionName string,
 	snapshotter *snap.Snapshotter,
 	proposeC chan []byte,
 	commitC chan []byte,
@@ -31,6 +33,7 @@ func NewDB(
 	commandHander CommandHandler,
 ) DB {
 	db := &phananxDB{
+		regionName:    regionName,
 		proposeC:      proposeC,
 		stableStore:   stableStore,
 		commandHander: commandHander,
@@ -50,7 +53,7 @@ func (db *phananxDB) Get(key []byte) ([]byte, error) {
 		return nil, err
 	}
 	defer snapshot.Release()
-	return snapshot.Get(key)
+	return snapshot.Get(db.regionName, key)
 }
 
 func (db *phananxDB) Propose(command *phalanxpb.Command) error {
@@ -88,7 +91,7 @@ func (db *phananxDB) readCommits(commitC chan []byte, errorC chan error) error {
 			errorC <- err
 			continue
 		}
-		db.commandHander.Apply(&command, db.stableStore)
+		db.commandHander.Apply(db.regionName, &command, db.stableStore)
 	}
 	if err, ok := <-errorC; ok {
 		return err
@@ -96,10 +99,10 @@ func (db *phananxDB) readCommits(commitC chan []byte, errorC chan error) error {
 	return nil
 }
 
-func (db *phananxDB) getSnapshot() ([]byte, error) {
-	return db.stableStore.CreateCheckpoint()
+func (db *phananxDB) GetSnapshot() ([]byte, error) {
+	return db.stableStore.CreateCheckpoint(db.regionName)
 }
 
 func (db *phananxDB) recoverFromSnapshot(snapshot []byte) error {
-	return db.stableStore.RestoreToCheckpoint(snapshot)
+	return db.stableStore.RestoreToCheckpoint(db.regionName, snapshot)
 }

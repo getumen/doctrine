@@ -16,6 +16,8 @@ import (
 	"golang.org/x/xerrors"
 )
 
+const regionName = "default"
+
 type cluster struct {
 	peers        []string
 	commitC      []<-chan []byte
@@ -27,6 +29,7 @@ type cluster struct {
 
 // newCluster creates a cluster of n nodes
 func newCluster(n int) (*cluster, error) {
+
 	peers := make([]string, n)
 	for i := range peers {
 		peers[i] = fmt.Sprintf("http://127.0.0.1:%d", 10000+i)
@@ -56,7 +59,8 @@ func newCluster(n int) (*cluster, error) {
 		if err != nil {
 			return nil, err
 		}
-		getSnapshot := func() ([]byte, error) { return clus.stableStores[i].CreateCheckpoint() }
+		clus.stableStores[i].CreateRegion(regionName)
+		getSnapshot := func() ([]byte, error) { return clus.stableStores[i].CreateCheckpoint(regionName) }
 
 		clus.commitC[i], clus.errorC[i], _ = phalanx.NewNode(
 			i+1,
@@ -197,6 +201,12 @@ func TestPutAndGetKeyValue(t *testing.T) {
 	os.RemoveAll(fmt.Sprintf("data/snap-%d", 1))
 	os.RemoveAll(fmt.Sprintf("data/stableStore-%d", 1))
 
+	t.Cleanup(func() {
+		os.RemoveAll(fmt.Sprintf("data/wal-%d", 1))
+		os.RemoveAll(fmt.Sprintf("data/snap-%d", 1))
+		os.RemoveAll(fmt.Sprintf("data/stableStore-%d", 1))
+	})
+
 	clusters := []string{"http://127.0.0.1:9021"}
 
 	proposeC := make(chan []byte)
@@ -209,7 +219,8 @@ func TestPutAndGetKeyValue(t *testing.T) {
 		"leveldb",
 		fmt.Sprintf("data/stableStore-%d", 1),
 	)
-	getSnapshot := func() ([]byte, error) { return stableStore.CreateCheckpoint() }
+	stableStore.CreateRegion(regionName)
+	getSnapshot := func() ([]byte, error) { return stableStore.CreateCheckpoint(regionName) }
 	commitC, errorC, snapshotterReady := phalanx.NewNode(
 		1,
 		clusters,
@@ -222,9 +233,17 @@ func TestPutAndGetKeyValue(t *testing.T) {
 	)
 
 	kvs := phalanx.NewDB(
-		<-snapshotterReady, proposeC, commitC, errorC, stableStore, &commandHandler{})
+		regionName,
+		<-snapshotterReady,
+		proposeC,
+		commitC,
+		errorC,
+		stableStore,
+		&commandHandler{},
+	)
 
 	srv := httptest.NewServer(&httpKVAPI{
+		regionName:  regionName,
 		store:       kvs,
 		confChangeC: confChangeC,
 	})

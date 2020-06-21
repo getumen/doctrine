@@ -11,6 +11,8 @@ import (
 
 func TestStore_Checkpoint(t *testing.T) {
 
+	const region = "default"
+
 	inputs := []struct {
 		key, value []byte
 	}{
@@ -46,25 +48,24 @@ func TestStore_Checkpoint(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { os.RemoveAll(tempDir) })
-	internal, err := leveldb.OpenFile(tempDir, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
 	target := &store{
-		internal: internal,
+		storages: make(map[string]*leveldb.DB),
+		dataPath: tempDir,
 	}
 	t.Cleanup(func() { target.Close() })
 
+	err = target.CreateRegion(region)
+
 	batch := target.CreateBatch()
 	for i := range inputs {
-		batch.Put(inputs[i].key, inputs[i].value)
+		batch.Put(region, inputs[i].key, inputs[i].value)
 	}
 	err = target.Write(batch)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	checkpoint, err := target.CreateCheckpoint()
+	checkpoint, err := target.CreateCheckpoint(region)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,16 +75,14 @@ func TestStore_Checkpoint(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { os.RemoveAll(tempDir2) })
-	actualInternal, err := leveldb.OpenFile(tempDir2, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+
 	actual := &store{
-		internal: actualInternal,
+		storages: make(map[string]*leveldb.DB),
+		dataPath: tempDir2,
 	}
 	t.Cleanup(func() { actual.Close() })
 
-	err = actual.RestoreToCheckpoint(checkpoint)
+	err = actual.RestoreToCheckpoint(region, checkpoint)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -94,7 +93,10 @@ func TestStore_Checkpoint(t *testing.T) {
 	}
 	defer snap.Release()
 
-	iter := snap.NewIterator(nil)
+	iter, err := snap.NewIterator(region, nil)
+	if err != nil {
+		t.Fatalf("%+v", err)
+	}
 	defer iter.Release()
 
 	counter := 0

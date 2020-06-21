@@ -10,22 +10,36 @@ import (
 )
 
 func TestPhalanxDB_Checkpoint(t *testing.T) {
+
+	const region = "default"
 	tempDir, err := ioutil.TempDir("", t.Name())
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { os.RemoveAll(tempDir) })
-	internal, err := leveldb.OpenFile(tempDir, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	internal.Put([]byte("foo"), []byte("bar"), nil)
 
-	s := &store{
-		internal: internal,
+	driver := &storeDriver{}
+
+	s, err := driver.New(tempDir)
+
+	if err != nil {
+		t.Fatalf("error: %+v", err)
 	}
 
 	defer s.Close()
+
+	err = s.CreateRegion(region)
+	if err != nil {
+		t.Fatalf("error: %+v", err)
+	}
+
+	b := s.CreateBatch()
+	b.Put(region, []byte("foo"), []byte("bar"))
+	err = s.Write(b)
+
+	if err != nil {
+		t.Fatalf("error: %+v", err)
+	}
 
 	snap, err := s.GetSnapshot()
 	if err != nil {
@@ -33,7 +47,7 @@ func TestPhalanxDB_Checkpoint(t *testing.T) {
 	}
 	defer snap.Release()
 
-	v, err := snap.Get([]byte("foo"))
+	v, err := snap.Get(region, []byte("foo"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -41,11 +55,14 @@ func TestPhalanxDB_Checkpoint(t *testing.T) {
 		t.Fatalf("foo has unexpected value, got %s", v)
 	}
 
-	data, err := s.CreateCheckpoint()
+	data, err := s.CreateCheckpoint(region)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = s.internal.Delete([]byte("foo"), nil)
+
+	ba := s.CreateBatch()
+	ba.Delete(region, []byte("foo"))
+	err = s.Write(ba)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -53,19 +70,19 @@ func TestPhalanxDB_Checkpoint(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	v, err = snap.Get([]byte("foo"))
+	v, err = snap.Get(region, []byte("foo"))
 	if err != leveldb.ErrNotFound {
 		t.Fatal(err)
 	}
 
-	if err := s.RestoreToCheckpoint(data); err != nil {
+	if err := s.RestoreToCheckpoint(region, data); err != nil {
 		t.Fatal(err)
 	}
 	snap, err = s.GetSnapshot()
 	if err != nil {
 		t.Fatal(err)
 	}
-	v, err = snap.Get([]byte("foo"))
+	v, err = snap.Get(region, []byte("foo"))
 	if err != nil {
 		t.Fatal(err)
 	}

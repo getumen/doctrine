@@ -2,22 +2,56 @@ package phalanx
 
 import "fmt"
 
-// ErrStableStoreDriverNotFound is t/o
+// ErrStableStoreDriverNotFound is T/O
 type ErrStableStoreDriverNotFound struct {
-	driverName string
+	DriverName string
 }
 
-func (errStableStoreDriverNotFound *ErrStableStoreDriverNotFound) Error() string {
+func (e *ErrStableStoreDriverNotFound) Error() string {
 	return fmt.Sprintf("stable store driver '%s' not found",
-		errStableStoreDriverNotFound.driverName)
+		e.DriverName)
 }
 
-// ErrLogStoreDriverNotFound is t/o
+// ErrLogStoreDriverNotFound is T/O
 type ErrLogStoreDriverNotFound struct {
-	driverName string
+	DriverName string
 }
 
-func (errLogStoreDriverNotFound *ErrLogStoreDriverNotFound) Error() string {
+func (e *ErrLogStoreDriverNotFound) Error() string {
 	return fmt.Sprintf("log store driver '%s' not found",
-		errLogStoreDriverNotFound.driverName)
+		e.DriverName)
+}
+
+// ErrRegionAlreadyExists is T/O
+type ErrRegionAlreadyExists struct {
+	region string
+}
+
+// NewErrRegionAlreadyExists creates ErrRegionAlreadyExists
+func NewErrRegionAlreadyExists(region string) *ErrRegionAlreadyExists {
+	return &ErrRegionAlreadyExists{
+		region: region,
+	}
+}
+
+func (e *ErrRegionAlreadyExists) Error() string {
+	return fmt.Sprintf("region '%s' already exists",
+		e.region)
+}
+
+// ErrRegionNotFound is T/O
+type ErrRegionNotFound struct {
+	region string
+}
+
+// NewRegionNotFound creates ErrRegionNotFound
+func NewRegionNotFound(region string) *ErrRegionNotFound {
+	return &ErrRegionNotFound{
+		region: region,
+	}
+}
+
+func (e *ErrRegionNotFound) Error() string {
+	return fmt.Sprintf("region '%s' not found",
+		e.region)
 }
