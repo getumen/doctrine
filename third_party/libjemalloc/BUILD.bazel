@@ -1,0 +1,9 @@
+load("@rules_foreign_cc//tools/build_defs:configure.bzl", "configure_make")
+
+configure_make(
+    name = "libjemalloc",
+    lib_source = "@com_github_jemalloc_jemalloc//:all",
+    visibility = ["//visibility:public"],
+    autogen = True,
+    configure_in_place = True,
+)

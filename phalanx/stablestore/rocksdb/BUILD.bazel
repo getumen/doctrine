@@ -1,0 +1,11 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["iterator.go"],
+    importpath = "github.com/getumen/doctrine/phalanx/stablestore/rocksdb",
+    visibility = ["//visibility:public"],
+    deps = [
+        "@com_github_tecbot_gorocksdb//:go_default_library",
+    ],
+)
