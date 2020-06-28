@@ -103,6 +103,7 @@ http_archive(
     url = "https://github.com/facebook/rocksdb/archive/v5.18.3.tar.gz",
     strip_prefix = "rocksdb-5.18.3",
     build_file = "@//:third_party/librocksdb.BUILD",
+    sha256 = "7fb6738263d3f2b360d7468cf2ebe333f3109f3ba1ff80115abd145d75287254",
 )
 
 http_archive(

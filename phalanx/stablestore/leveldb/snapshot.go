@@ -1,10 +1,11 @@
-package leveldbstablestore
+package leveldb
 
 import (
 	"github.com/getumen/doctrine/phalanx"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"github.com/syndtr/goleveldb/leveldb/util"
+	"golang.org/x/xerrors"
 )
 
 type snapshot struct {
@@ -13,7 +14,13 @@ type snapshot struct {
 
 func (snap *snapshot) Get(region string, key []byte) (value []byte, err error) {
 	if sn, exists := snap.regionSnaps[region]; exists {
-		return sn.Get(key, nil)
+		v, err := sn.Get(key, nil)
+		if err == leveldb.ErrNotFound {
+			return nil, phalanx.ErrKeyNotFound
+		} else if err != nil {
+			return nil, xerrors.Errorf("leveldb stable store: %w", err)
+		}
+		return v, nil
 	}
 	return nil, phalanx.NewRegionNotFound(region)
 }

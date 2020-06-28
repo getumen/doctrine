@@ -1,4 +1,4 @@
-package leveldbstablestore
+package leveldb
 
 import (
 	itpkg "github.com/syndtr/goleveldb/leveldb/iterator"
