@@ -1,4 +1,4 @@
-package leveldbkvs
+package rocksdbkvs
 
 import (
 	"bytes"
@@ -13,11 +13,11 @@ import (
 
 	"github.com/coreos/etcd/raft/raftpb"
 	"github.com/getumen/doctrine/phalanx"
-	_ "github.com/getumen/doctrine/phalanx/stablestore/leveldb"
+	_ "github.com/getumen/doctrine/phalanx/stablestore/rocksdb"
 	"golang.org/x/xerrors"
 )
 
-const regionName = "default"
+const regionName = "region-1"
 
 type cluster struct {
 	peers        []string
@@ -33,7 +33,7 @@ func newCluster(n int) (*cluster, error) {
 
 	peers := make([]string, n)
 	for i := range peers {
-		peers[i] = fmt.Sprintf("http://127.0.0.1:%d", 10000+i)
+		peers[i] = fmt.Sprintf("http://127.0.0.1:%d", 10010+i)
 	}
 
 	clus := &cluster{
@@ -58,7 +58,7 @@ func newCluster(n int) (*cluster, error) {
 		clus.proposeC[i] = make(chan []byte, 1)
 		clus.confChangeC[i] = make(chan raftpb.ConfChange, 1)
 		clus.stableStores[i], err = phalanx.NewStableStore(
-			"leveldb",
+			"rocksdb",
 			fmt.Sprintf("data/stableStore-%d", i+1),
 		)
 		if err != nil {
@@ -217,7 +217,7 @@ func TestPutAndGetKeyValue(t *testing.T) {
 		os.RemoveAll(fmt.Sprintf("data/stableStore-%d", 1))
 	})
 
-	clusters := []string{"http://127.0.0.1:9021"}
+	clusters := []string{"http://127.0.0.1:9022"}
 
 	proposeC := make(chan []byte)
 	defer close(proposeC)
@@ -226,7 +226,7 @@ func TestPutAndGetKeyValue(t *testing.T) {
 	defer close(confChangeC)
 
 	stableStore, err := phalanx.NewStableStore(
-		"leveldb",
+		"rocksdb",
 		fmt.Sprintf("data/stableStore-%d", 1),
 	)
 	stableStore.CreateRegion(regionName)

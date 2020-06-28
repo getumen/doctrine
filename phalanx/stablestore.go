@@ -29,8 +29,8 @@ type StableStore interface {
 type Batch interface {
 	Put(region string, key, value []byte)
 	Delete(region string, key []byte)
-	Len(region string) int
-	Reset(region string)
+	Len() int
+	Reset()
 }
 
 // Snapshot is a snapshot of StableStorage
@@ -41,7 +41,8 @@ type Snapshot interface {
 	Release()
 }
 
-// Iterator is an iterator of
+// Iterator is an iterator of db
+// not thread safe
 type Iterator interface {
 	Key() []byte
 	Value() []byte

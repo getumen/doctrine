@@ -7,6 +7,12 @@ jobs:
     steps:
     - uses: actions/checkout@master
 
+    - name: Mount bazel cache
+      uses: actions/cache@master
+      with:
+        path: "$HOME/.cache/bazel"
+        key: bazel
+
     - name: Install Bazel
       run: |
         sudo apt-get install -y curl gnupg
@@ -16,4 +22,4 @@ jobs:
       
     - name: test
       run: |
-        bazel test //...
+        bazel test //... --nocache_test_results

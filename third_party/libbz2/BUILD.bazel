@@ -1,0 +1,7 @@
+load("@rules_foreign_cc//tools/build_defs:make.bzl", "make")
+
+make(
+    name = "libbz2",
+    lib_source = "@com_github_enthought_bzip2//:all",
+    visibility = ["//visibility:public"],
+)

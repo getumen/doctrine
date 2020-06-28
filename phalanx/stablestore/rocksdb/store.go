@@ -1,10 +1,8 @@
-package leveldb
+package rocksdb
 
 import (
 	"bytes"
 	"io"
-	"os"
-	"path/filepath"
 	"regexp"
 	"sync"
 
@@ -12,7 +10,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/linkedin/goavro"
 	"github.com/pkg/errors"
-	"github.com/syndtr/goleveldb/leveldb"
+	"github.com/tecbot/gorocksdb"
 	"golang.org/x/xerrors"
 )
 
@@ -37,34 +35,53 @@ var (
 )
 
 type store struct {
-	sync.RWMutex
-	storages map[string]*leveldb.DB
+	cfMutex  *sync.RWMutex
+	cf       map[string]*gorocksdb.ColumnFamilyHandle
+	storage  *gorocksdb.DB
 	dataPath string
+	opt      *gorocksdb.Options
 }
 
 type storeDriver struct {
 }
 
-// New creates stable store implemented by LevelDB
+// New creates stable store implemented by RocksDB
 func (d *storeDriver) New(dataPath string) (phalanx.StableStore, error) {
+	opt := gorocksdb.NewDefaultOptions()
+	opt.SetCreateIfMissing(true)
+	opt.SetCreateIfMissingColumnFamilies(true)
+	storage, err := gorocksdb.OpenDb(opt, dataPath)
+	if err != nil {
+		return nil, xerrors.Errorf("fail to create rocksdb: %w", err)
+	}
 	return &store{
-		storages: map[string]*leveldb.DB{},
+		storage:  storage,
 		dataPath: dataPath,
+		opt:      opt,
+		cf:       make(map[string]*gorocksdb.ColumnFamilyHandle),
+		cfMutex:  new(sync.RWMutex),
 	}, nil
 }
 
 func init() {
-	phalanx.RegisterStableStore("leveldb", &storeDriver{})
+	phalanx.RegisterStableStore("rocksdb", &storeDriver{})
 }
 
 // CreateRegion creates a region
 func (s *store) CreateRegion(name string) error {
-	s.Lock()
-	defer s.Unlock()
+	s.cfMutex.Lock()
+	defer s.cfMutex.Unlock()
 	return s.createRegion(name)
 }
 
 func (s *store) createRegion(name string) error {
+
+	if name == "default" {
+		return errors.Errorf(
+			"leveldb stable store: invalid region name (%s): default is the system region",
+			name,
+		)
+	}
 
 	if matched := regionNameRegExp.Match([]byte(name)); !matched {
 		return errors.Errorf(
@@ -73,97 +90,89 @@ func (s *store) createRegion(name string) error {
 		)
 	}
 
-	if _, dup := s.storages[name]; dup {
+	if _, dup := s.cf[name]; dup {
 		return phalanx.NewErrRegionAlreadyExists(name)
 	}
-	db, err := leveldb.OpenFile(filepath.Join(s.dataPath, name), nil)
+	cf, err := s.storage.CreateColumnFamily(s.opt, name)
 	if err != nil {
 		return xerrors.Errorf(
 			"leveldb stable store: fail to create region(%s): %w",
 			name, err)
 	}
-	s.storages[name] = db
+	s.cf[name] = cf
 	return nil
 }
 
 // DropRegion drop a region
 func (s *store) DropRegion(name string) error {
-	s.Lock()
-	defer s.Unlock()
+	s.cfMutex.Lock()
+	defer s.cfMutex.Unlock()
 	return s.dropRegion(name)
 }
 
 func (s *store) dropRegion(name string) error {
-	if region, exist := s.storages[name]; exist {
-		if err := region.Close(); err != nil {
-			return xerrors.Errorf(
-				"leveldb stable store: fail to close region(%s): %w",
-				name, err)
-		}
-
-		os.RemoveAll(filepath.Join(s.dataPath, name))
-		delete(s.storages, name)
+	if name == "default" {
+		return errors.Errorf(
+			"leveldb stable store: invalid region name (%s): default is the system region",
+			name,
+		)
+	}
+	if cf, exist := s.cf[name]; exist {
+		s.storage.DropColumnFamily(cf)
+		delete(s.cf, name)
 		return nil
 	}
 	return phalanx.NewRegionNotFound(name)
 }
 
 func (s *store) HasRegion(name string) bool {
-	s.RLock()
-	defer s.RUnlock()
+	s.cfMutex.RLock()
+	defer s.cfMutex.RUnlock()
 	return s.hasRegion(name)
 }
 
 func (s *store) hasRegion(name string) bool {
-	_, exists := s.storages[name]
+	_, exists := s.cf[name]
 	return exists
 }
 
 // CreateBatch creates batch
 func (s *store) CreateBatch() phalanx.Batch {
-	s.RLock()
-	defer s.RUnlock()
+	s.cfMutex.RLock()
+	defer s.cfMutex.RUnlock()
 	return s.createBatch()
 }
+
 func (s *store) createBatch() phalanx.Batch {
-	batchs := make(map[string]*leveldb.Batch)
-	for key := range s.storages {
-		batchs[key] = new(leveldb.Batch)
-	}
+	b := gorocksdb.NewWriteBatch()
 	return &batch{
-		batchs: batchs,
+		cf:      s.cf,
+		cfMutex: s.cfMutex,
+		batchs:  b,
 	}
 }
 
 // Write apply the given batch to the StableStorage
 func (s *store) Write(b phalanx.Batch) error {
-	s.RLock()
-	defer s.RUnlock()
+	if ba, ok := b.(*batch); ok {
+		defer ba.batchs.Destroy()
+	}
+
 	return s.write(b)
 }
 
 func (s *store) write(b phalanx.Batch) error {
-	if bi, ok := b.(*batch); ok {
-		// check all region exists
-		for key := range bi.batchs {
-			if _, exists := s.storages[key]; !exists {
-				return phalanx.NewRegionNotFound(key)
-			}
-		}
-		var errs *multierror.Error
-		for key := range bi.batchs {
-			err := s.storages[key].Write(bi.batchs[key], nil)
-			if err != nil {
-				errs = multierror.Append(
-					errs,
-					xerrors.Errorf(
-						"leveldb stable store: fail to write batch to region(%s): %w",
-						key, err))
-			}
 
+	opt := gorocksdb.NewDefaultWriteOptions()
+
+	if bi, ok := b.(*batch); ok {
+		err := s.storage.Write(opt, bi.batchs)
+		if err != nil {
+			return xerrors.Errorf("fail to write: %w", err)
 		}
-		return errs.ErrorOrNil()
+		return nil
 	}
+
 	return errors.New("cast fail")
 }
 
@@ -189,7 +198,7 @@ func (s *store) writeRegionCheckpoint(
 	}
 
 	block := []interface{}{}
-	snap, err := s.GetSnapshot()
+	snap, err := s.getSnapshot()
 	if err != nil {
 		return xerrors.Errorf(
 			"leveldb stable store: fail to get snapshot: %w",
@@ -270,17 +279,18 @@ func (s *store) RestoreToCheckpoint(
 	region string,
 	checkpoint []byte,
 ) error {
-	s.Lock()
-	defer s.Unlock()
-	return s.restoreToCheckpoint(region, checkpoint)
 
+	s.cfMutex.Lock()
+	defer s.cfMutex.Unlock()
+	return s.restoreToCheckpoint(region, checkpoint)
 }
+
 func (s *store) restoreToCheckpoint(
 	region string,
 	checkpoint []byte,
 ) error {
 
-	if _, regionExists := s.storages[region]; !regionExists {
+	if _, regionExists := s.cf[region]; !regionExists {
 		err := s.createRegion(region)
 		if err != nil {
 			return xerrors.Errorf(
@@ -291,12 +301,20 @@ func (s *store) restoreToCheckpoint(
 	}
 
 	// delete all data
-	snap, err := s.getSnapshot()
+	snapIF, err := s.getSnapshot()
 	if err != nil {
 		return err
 	}
+
+	var snap *snapshot
+	var ok bool
+
+	if snap, ok = snapIF.(*snapshot); !ok {
+		return errors.New("cast failed")
+	}
+
 	defer snap.Release()
-	iter, err := snap.NewIterator(
+	iter, err := snap.newIterator(
 		region,
 		phalanx.FullScanRange(),
 	)
@@ -311,18 +329,33 @@ func (s *store) restoreToCheckpoint(
 
 	var resultError *multierror.Error
 
-	batch := s.createBatch()
+	var ba *batch
+
+	baIF := s.createBatch()
+
+	if b, ok := baIF.(*batch); ok {
+		ba = b
+	} else {
+		return errors.New("cast failed")
+	}
+
 	for iter.Next() {
 		key := iter.Key()
-		batch.Delete(region, key)
+		ba.delete(region, key)
 
-		if batch.Len() >= maxBatchSize {
-			err = s.write(batch)
+		if ba.Len() >= maxBatchSize {
+			err = s.write(ba)
 			resultError = multierror.Append(resultError, err)
-			batch = s.createBatch()
+			baIF := s.createBatch()
+
+			if b, ok := baIF.(*batch); !ok {
+				ba = b
+			} else {
+				return errors.New("cast failed")
+			}
 		}
 	}
-	err = s.write(batch)
+	err = s.write(ba)
 	resultError = multierror.Append(resultError, err)
 	resultError = multierror.Append(resultError, iter.Error())
 
@@ -330,33 +363,48 @@ func (s *store) restoreToCheckpoint(
 		return resultError.ErrorOrNil()
 	}
 
-	reader, err := goavro.NewOCFReader(bytes.NewBuffer(checkpoint))
-	batch = s.createBatch()
 	resultError = new(multierror.Error)
+
+	reader, err := goavro.NewOCFReader(bytes.NewBuffer(checkpoint))
 	if err != nil {
 		return err
 	}
+
+	batchIF := s.createBatch()
+
+	if b, ok := batchIF.(*batch); ok {
+		ba = b
+	} else {
+		return errors.New("cast failed")
+	}
+
 	for reader.Scan() {
 		if record, err := reader.Read(); err == nil {
 			m := record.(map[string]interface{})
 			value := m["value"].(map[string]interface{})
 			if el, ok := value["bytes"]; ok {
-				batch.Put(region, m["key"].([]byte), el.([]byte))
+				ba.put(region, m["key"].([]byte), el.([]byte))
 			} else {
-				batch.Put(region, m["key"].([]byte), nil)
+				ba.put(region, m["key"].([]byte), nil)
 			}
 		} else {
 			resultError = multierror.Append(resultError, err)
 		}
 
-		if batch.Len() >= maxBatchSize {
-			err = s.write(batch)
+		if ba.Len() >= maxBatchSize {
+			err = s.write(ba)
 			resultError = multierror.Append(resultError, err)
-			batch = s.createBatch()
+			baIF := s.createBatch()
+
+			if b, ok := baIF.(*batch); !ok {
+				ba = b
+			} else {
+				return errors.New("cast failed")
+			}
 		}
 	}
-	if batch.Len() > 0 {
-		err = s.write(batch)
+	if ba.Len() > 0 {
+		err = s.write(ba)
 		resultError = multierror.Append(resultError, err)
 	}
 
@@ -365,35 +413,34 @@ func (s *store) restoreToCheckpoint(
 
 // Close Close closes the StableStorage
 func (s *store) Close() error {
-	var errorResults *multierror.Error
-	for key := range s.storages {
-		err := s.storages[key].Close()
-		errorResults = multierror.Append(errorResults, err)
+	s.cfMutex.Lock()
+	defer s.cfMutex.Unlock()
+
+	for _, cf := range s.cf {
+		cf.Destroy()
 	}
-	return errorResults.ErrorOrNil()
+
+	s.opt.Destroy()
+
+	s.storage.Close()
+	return nil
 }
 
 // GetSnapshot
 func (s *store) GetSnapshot() (phalanx.Snapshot, error) {
-	s.RLock()
-	defer s.RUnlock()
+	s.cfMutex.RLock()
+	defer s.cfMutex.RUnlock()
 	return s.getSnapshot()
 }
+
 func (s *store) getSnapshot() (phalanx.Snapshot, error) {
 
-	snapshots := make(map[string]*leveldb.Snapshot)
+	snap := s.storage.NewSnapshot()
 
-	var err error
-	for key := range s.storages {
-		snapshots[key], err = s.storages[key].GetSnapshot()
-		if err != nil {
-			return nil, xerrors.Errorf(
-				"leveldb stable store: fail to get snapshot of region(%s): %w",
-				key, err,
-			)
-		}
-	}
 	return &snapshot{
-		regionSnaps: snapshots,
+		snap:    snap,
+		db:      s.storage,
+		cfMutex: s.cfMutex,
+		cf:      s.cf,
 	}, nil
 }

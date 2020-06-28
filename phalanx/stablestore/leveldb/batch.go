@@ -1,4 +1,4 @@
-package leveldbstablestore
+package leveldb
 
 import "github.com/syndtr/goleveldb/leveldb"
 
@@ -16,10 +16,16 @@ func (b *batch) Delete(region string, key []byte) {
 	b.batchs[region].Delete(key)
 }
 
-func (b *batch) Len(region string) int {
-	return b.batchs[region].Len()
+func (b *batch) Len() int {
+	l := 0
+	for _, v := range b.batchs {
+		l += v.Len()
+	}
+	return l
 }
 
-func (b *batch) Reset(region string) {
-	b.batchs[region].Reset()
+func (b *batch) Reset() {
+	for _, v := range b.batchs {
+		v.Reset()
+	}
 }

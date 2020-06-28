@@ -15,8 +15,9 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.6.0 // indirect
 	github.com/syndtr/goleveldb v1.0.0
+	github.com/tecbot/gorocksdb v0.0.0-20191217155057-f0fad39f321c
 	github.com/xiang90/probing v0.0.0-20190116061207-43a291ad63a2 // indirect
-	go.uber.org/zap v1.15.0
+	go.uber.org/zap v1.15.0 // indirect
 	golang.org/x/time v0.0.0-20200416051211-89c76fbcd5d1 // indirect
 	golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543
 	google.golang.org/protobuf v1.24.0

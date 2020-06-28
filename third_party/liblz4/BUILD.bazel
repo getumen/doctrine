@@ -1,0 +1,7 @@
+load("@rules_foreign_cc//tools/build_defs:make.bzl", "make")
+
+make(
+    name = "liblz4",
+    lib_source = "@com_github_lz4_lz4//:all",
+    visibility = ["//visibility:public"],
+)

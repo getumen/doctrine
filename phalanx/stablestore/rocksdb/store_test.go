@@ -1,17 +1,15 @@
-package leveldb
+package rocksdb
 
 import (
 	"bytes"
 	"io/ioutil"
 	"os"
 	"testing"
-
-	"github.com/syndtr/goleveldb/leveldb"
 )
 
 func TestStore_Checkpoint(t *testing.T) {
 
-	const region = "default"
+	const region = "region-1"
 
 	inputs := []struct {
 		key, value []byte
@@ -48,9 +46,10 @@ func TestStore_Checkpoint(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { os.RemoveAll(tempDir) })
-	target := &store{
-		storages: make(map[string]*leveldb.DB),
-		dataPath: tempDir,
+	driver := &storeDriver{}
+	target, err := driver.New(tempDir)
+	if err != nil {
+		t.Fatalf("fail to create db: %+v", err)
 	}
 	t.Cleanup(func() { target.Close() })
 
@@ -80,15 +79,15 @@ func TestStore_Checkpoint(t *testing.T) {
 	}
 	t.Cleanup(func() { os.RemoveAll(tempDir2) })
 
-	actual := &store{
-		storages: make(map[string]*leveldb.DB),
-		dataPath: tempDir2,
+	actual, err := driver.New(tempDir2)
+	if err != nil {
+		t.Fatalf("fail to create db: %+v", err)
 	}
 	t.Cleanup(func() { actual.Close() })
 
 	err = actual.RestoreToCheckpoint(region, checkpoint)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("%+v", err)
 	}
 
 	snap, err := actual.GetSnapshot()

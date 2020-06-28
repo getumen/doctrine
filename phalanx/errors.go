@@ -1,6 +1,14 @@
 package phalanx
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
+
+var (
+	// ErrKeyNotFound represnts that the key is not found in the stable store
+	ErrKeyNotFound = errors.New("not found")
+)
 
 // ErrStableStoreDriverNotFound is T/O
 type ErrStableStoreDriverNotFound struct {

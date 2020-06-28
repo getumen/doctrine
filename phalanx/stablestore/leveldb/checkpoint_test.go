@@ -1,4 +1,4 @@
-package leveldbstablestore
+package leveldb
 
 import (
 	"bytes"
@@ -6,7 +6,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/syndtr/goleveldb/leveldb"
+	"github.com/getumen/doctrine/phalanx"
 )
 
 func TestPhalanxDB_Checkpoint(t *testing.T) {
@@ -71,7 +71,7 @@ func TestPhalanxDB_Checkpoint(t *testing.T) {
 		t.Fatal(err)
 	}
 	v, err = snap.Get(region, []byte("foo"))
-	if err != leveldb.ErrNotFound {
+	if err != phalanx.ErrKeyNotFound {
 		t.Fatal(err)
 	}
 
