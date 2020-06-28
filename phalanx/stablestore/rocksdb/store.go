@@ -49,6 +49,7 @@ type storeDriver struct {
 func (d *storeDriver) New(dataPath string) (phalanx.StableStore, error) {
 	opt := gorocksdb.NewDefaultOptions()
 	opt.SetCreateIfMissing(true)
+	opt.SetCreateIfMissingColumnFamilies(true)
 	storage, err := gorocksdb.OpenDb(opt, dataPath)
 	if err != nil {
 		return nil, xerrors.Errorf("fail to create rocksdb: %w", err)
@@ -153,6 +154,10 @@ func (s *store) createBatch() phalanx.Batch {
 
 // Write apply the given batch to the StableStorage
 func (s *store) Write(b phalanx.Batch) error {
+	if ba, ok := b.(*batch); ok {
+		defer ba.batchs.Destroy()
+	}
+
 	return s.write(b)
 }
 
@@ -414,6 +419,8 @@ func (s *store) Close() error {
 	for _, cf := range s.cf {
 		cf.Destroy()
 	}
+
+	s.opt.Destroy()
 
 	s.storage.Close()
 	return nil
