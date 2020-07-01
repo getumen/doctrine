@@ -149,7 +149,7 @@ func TestProposeOnCommit(t *testing.T) {
 				case pC <- s:
 					continue
 				case err := <-eC:
-					t.Fatalf("eC message (%+v)", err)
+					log.Fatalf("eC message (%+v)", err)
 				}
 			}
 			donec <- struct{}{}
@@ -229,6 +229,9 @@ func TestPutAndGetKeyValue(t *testing.T) {
 		"leveldb",
 		fmt.Sprintf("data/stableStore-%d", 1),
 	)
+	if err != nil {
+		t.Fatalf("fail to create stable store: %+v", err)
+	}
 	stableStore.CreateRegion(regionName)
 	getSnapshot := func() ([]byte, error) { return stableStore.CreateCheckpoint(regionName) }
 	commitC, errorC, snapshotterReady := phalanx.NewNode(

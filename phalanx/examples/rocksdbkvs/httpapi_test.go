@@ -149,7 +149,7 @@ func TestProposeOnCommit(t *testing.T) {
 				case pC <- s:
 					continue
 				case err := <-eC:
-					t.Fatalf("eC message (%+v)", err)
+					log.Fatalf("eC message (%+v)", err)
 				}
 			}
 			donec <- struct{}{}
