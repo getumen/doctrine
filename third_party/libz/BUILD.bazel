@@ -4,4 +4,5 @@ cmake_external(
     name = "libz",
     lib_source = "@com_github_madler_zlib//:all",
     visibility = ["//visibility:public"],
+    static_libraries = ["libz.a"],
 )

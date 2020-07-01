@@ -4,4 +4,5 @@ cmake_external(
     name = "libsnappy",
     lib_source = "@com_github_google_snappy//:all",
     visibility = ["//visibility:public"],
+    static_libraries = ["libsnappy.a"],
 )

@@ -4,4 +4,5 @@ make(
     name = "libbz2",
     lib_source = "@com_github_enthought_bzip2//:all",
     visibility = ["//visibility:public"],
+    static_libraries = ["libbz2.a"],
 )

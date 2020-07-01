@@ -13,5 +13,5 @@ go_library(
         "-lstdc++",
         "-lm",
         "-ldl",
-    ]
+    ],
 )

@@ -4,4 +4,5 @@ make(
     name = "libzstd",
     lib_source = "@com_github_facebook_zstd//:all",
     visibility = ["//visibility:public"],
+    static_libraries = ["libzstd.a"],
 )
