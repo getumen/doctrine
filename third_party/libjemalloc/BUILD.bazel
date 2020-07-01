@@ -6,4 +6,5 @@ configure_make(
     visibility = ["//visibility:public"],
     autogen = True,
     configure_in_place = True,
+    static_libraries = ["libjemalloc.a"],
 )
