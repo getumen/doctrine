@@ -196,7 +196,7 @@ func TestCloseProposerInflight(t *testing.T) {
 	}()
 
 	// wait for one message
-	if c, ok := <-clus.commitC[0]; bytes.Compare(c, []byte("foo")) != 0 || !ok {
+	if c, ok := <-clus.commitC[0]; !bytes.Equal(c, []byte("foo")) || !ok {
 		t.Fatalf("Commit failed")
 	}
 }
@@ -291,7 +291,7 @@ func TestPutAndGetKeyValue(t *testing.T) {
 	}
 	defer resp.Body.Close()
 
-	if bytes.Compare(wantValue, data) != 0 {
+	if !bytes.Equal(wantValue, data) {
 		t.Fatalf("expect %s, got %s", wantValue, data)
 	}
 }

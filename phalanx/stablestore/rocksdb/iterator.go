@@ -7,8 +7,7 @@ import (
 )
 
 type iterator struct {
-	internal   *gorocksdb.Iterator
-	start, end []byte
+	internal *gorocksdb.Iterator
 }
 
 func (it *iterator) Key() []byte {
