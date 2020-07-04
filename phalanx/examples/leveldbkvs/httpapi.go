@@ -97,29 +97,3 @@ func (h *httpKVAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	}
 }
-
-// serveHttpKVAPI starts a key-value server with a GET/PUT API and listens.
-func serveHTTPKVAPI(
-	kv phalanx.DB,
-	port int,
-	confChangeC chan<- raftpb.ConfChange,
-	errorC <-chan error,
-) {
-	srv := http.Server{
-		Addr: ":" + strconv.Itoa(port),
-		Handler: &httpKVAPI{
-			store:       kv,
-			confChangeC: confChangeC,
-		},
-	}
-	go func() {
-		if err := srv.ListenAndServe(); err != nil {
-			log.Fatal(err)
-		}
-	}()
-
-	// exit when raft goes down
-	if err, ok := <-errorC; ok {
-		log.Fatal(err)
-	}
-}

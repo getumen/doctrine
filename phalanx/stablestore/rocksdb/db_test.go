@@ -34,10 +34,13 @@ func TestRocksDB_GetPut(t *testing.T) {
 	ro := gorocksdb.NewDefaultReadOptions()
 
 	sl, err := db.Get(ro, []byte("test"))
+	if err != nil {
+		t.Fatalf("fail to get: %+v", err)
+	}
 	defer sl.Free()
 	val := sl.Data()
 
-	if bytes.Compare(val, []byte("value")) != 0 {
+	if !bytes.Equal(val, []byte("value")) {
 		t.Fatalf("expected value, but got %s", string(val))
 	}
 }
@@ -105,10 +108,13 @@ func TestRocksDB_Compression(t *testing.T) {
 		ro := gorocksdb.NewDefaultReadOptions()
 
 		sl, err := db.Get(ro, []byte("test"))
+		if err != nil {
+			t.Fatalf("[%s] fail to get: %+v", c.name, err)
+		}
 		defer sl.Free()
 		val := sl.Data()
 
-		if bytes.Compare(val, []byte("value")) != 0 {
+		if !bytes.Equal(val, []byte("value")) {
 			t.Fatalf("[%s] expected value, but got %s",
 				c.name, string(val))
 		}

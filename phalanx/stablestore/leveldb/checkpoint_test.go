@@ -51,7 +51,7 @@ func TestPhalanxDB_Checkpoint(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if bytes.Compare(v, []byte("bar")) != 0 {
+	if !bytes.Equal(v, []byte("bar")) {
 		t.Fatalf("foo has unexpected value, got %s", v)
 	}
 
@@ -70,7 +70,7 @@ func TestPhalanxDB_Checkpoint(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	v, err = snap.Get(region, []byte("foo"))
+	_, err = snap.Get(region, []byte("foo"))
 	if err != phalanx.ErrKeyNotFound {
 		t.Fatal(err)
 	}
@@ -86,7 +86,7 @@ func TestPhalanxDB_Checkpoint(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if bytes.Compare(v, []byte("bar")) != 0 {
+	if !bytes.Equal(v, []byte("bar")) {
 		t.Fatalf("foo has unexpected value, got %s", v)
 	}
 }

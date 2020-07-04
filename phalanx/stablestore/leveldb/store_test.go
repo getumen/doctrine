@@ -106,11 +106,11 @@ func TestStore_Checkpoint(t *testing.T) {
 	counter := 0
 
 	for iter.Next() {
-		if bytes.Compare(expected[counter].key, iter.Key()) != 0 {
+		if !bytes.Equal(expected[counter].key, iter.Key()) {
 			t.Fatalf("keys not match: expected %s, but got %s",
 				string(expected[counter].key), string(iter.Key()))
 		}
-		if bytes.Compare(expected[counter].value, iter.Value()) != 0 {
+		if !bytes.Equal(expected[counter].value, iter.Value()) {
 			t.Fatalf("valuess not match: expected %s, but got %s",
 				string(expected[counter].value), string(iter.Value()))
 		}

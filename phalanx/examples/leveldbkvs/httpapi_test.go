@@ -149,7 +149,7 @@ func TestProposeOnCommit(t *testing.T) {
 				case pC <- s:
 					continue
 				case err := <-eC:
-					t.Fatalf("eC message (%+v)", err)
+					log.Fatalf("eC message (%+v)", err)
 				}
 			}
 			donec <- struct{}{}
@@ -196,7 +196,7 @@ func TestCloseProposerInflight(t *testing.T) {
 	}()
 
 	// wait for one message
-	if c, ok := <-clus.commitC[0]; bytes.Compare(c, []byte("foo")) != 0 || !ok {
+	if c, ok := <-clus.commitC[0]; !bytes.Equal(c, []byte("foo")) || !ok {
 		t.Fatalf("Commit failed")
 	}
 }
@@ -229,6 +229,9 @@ func TestPutAndGetKeyValue(t *testing.T) {
 		"leveldb",
 		fmt.Sprintf("data/stableStore-%d", 1),
 	)
+	if err != nil {
+		t.Fatalf("fail to create stable store: %+v", err)
+	}
 	stableStore.CreateRegion(regionName)
 	getSnapshot := func() ([]byte, error) { return stableStore.CreateCheckpoint(regionName) }
 	commitC, errorC, snapshotterReady := phalanx.NewNode(
@@ -291,7 +294,7 @@ func TestPutAndGetKeyValue(t *testing.T) {
 	}
 	defer resp.Body.Close()
 
-	if bytes.Compare(wantValue, data) != 0 {
+	if !bytes.Equal(wantValue, data) {
 		t.Fatalf("expect %s, got %s", wantValue, data)
 	}
 }
