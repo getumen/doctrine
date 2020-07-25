@@ -9,6 +9,7 @@ import (
 )
 
 type snapshot struct {
+	// read only snapshots
 	regionSnaps map[string]*leveldb.Snapshot
 }
 
@@ -23,6 +24,25 @@ func (snap *snapshot) Get(region string, key []byte) (value []byte, err error) {
 		return v, nil
 	}
 	return nil, phalanx.NewRegionNotFound(region)
+}
+
+func (snap *snapshot) MultiGet(region string, keys ...[]byte) ([][]byte, error) {
+	if sn, exists := snap.regionSnaps[region]; exists {
+
+		values := make([][]byte, len(keys))
+
+		for i := range keys {
+			v, err := sn.Get(keys[i], nil)
+			if err == leveldb.ErrNotFound {
+				values[i] = nil
+			} else if err != nil {
+				values[i] = v
+			}
+		}
+		return values, nil
+	}
+	return nil, phalanx.NewRegionNotFound(region)
+
 }
 
 func (snap *snapshot) Has(region string, key []byte) (ret bool, err error) {
