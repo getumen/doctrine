@@ -34,6 +34,32 @@ func (s *snapshot) Get(region string, key []byte) (value []byte, err error) {
 	return sl.Data(), nil
 }
 
+func (s *snapshot) MultiGet(region string, keys ...[]byte) ([][]byte, error) {
+	opt := gorocksdb.NewDefaultReadOptions()
+	opt.SetSnapshot(s.snap)
+
+	s.cfMutex.RLock()
+	defer s.cfMutex.RUnlock()
+
+	values := make([][]byte, len(keys))
+
+	slices, err := s.db.MultiGetCF(opt, s.cf[region], keys...)
+	if err != nil {
+		return nil, xerrors.Errorf("rocksdb stable store: %w", err)
+	}
+
+	for i := range keys {
+		sl := slices[i]
+		defer sl.Free()
+		if sl.Exists() {
+			values[i] = sl.Data()
+		} else {
+			values[i] = nil
+		}
+	}
+	return values, nil
+}
+
 func (s *snapshot) Has(region string, key []byte) (ret bool, err error) {
 	opt := gorocksdb.NewDefaultReadOptions()
 	opt.SetSnapshot(s.snap)

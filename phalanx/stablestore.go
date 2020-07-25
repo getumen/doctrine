@@ -36,6 +36,7 @@ type Batch interface {
 // Snapshot is a snapshot of StableStorage
 type Snapshot interface {
 	Get(region string, key []byte) (value []byte, err error)
+	MultiGet(region string, keys ...[]byte) (values [][]byte, err error)
 	Has(region string, key []byte) (ret bool, err error)
 	NewIterator(region string, slice *Range) (Iterator, error)
 	Release()
