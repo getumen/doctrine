@@ -48,7 +48,7 @@ func newCluster(n int) (*cluster, error) {
 	var err error
 
 	if err = os.Mkdir("data", 0755); err != nil && !os.IsExist(err) {
-		log.Fatalf("fail to create data dir", err)
+		log.Fatalf("fail to create data dir: %+v", err)
 	}
 
 	for i := range clus.peers {
@@ -204,7 +204,7 @@ func TestCloseProposerInflight(t *testing.T) {
 func TestPutAndGetKeyValue(t *testing.T) {
 
 	if err := os.Mkdir("data", 0755); err != nil && !os.IsExist(err) {
-		t.Fatalf("fail to create data dir", err)
+		t.Fatalf("fail to create data dir: %+v", err)
 	}
 
 	os.RemoveAll(fmt.Sprintf("data/wal-%d", 1))
@@ -230,7 +230,7 @@ func TestPutAndGetKeyValue(t *testing.T) {
 		fmt.Sprintf("data/stableStore-%d", 1),
 	)
 	if err != nil {
-		t.Fatalf("fail to create stable store: %+v")
+		t.Fatalf("fail to create stable store: %+v", err)
 	}
 	stableStore.CreateRegion(regionName)
 	getSnapshot := func() ([]byte, error) { return stableStore.CreateCheckpoint(regionName) }
